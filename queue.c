@@ -278,12 +278,14 @@ int q_ascend(struct list_head *head)
     // https://leetcode.com/problems/remove-nodes-from-linked-list/
     if (!head || list_empty(head))
         return 0;  // `head` is NULL, or there's no list in `head`
+    if (list_is_singular(head))
+        return 1;
     // this section cares about value in 'element_t' structure
-    struct list_head *curr = head->prev;
+    struct list_head *curr = head->next;
     element_t *p, *c_max = list_entry(curr, element_t, list);
     for (; c_max->list.prev != head;) {
-        p = list_entry(c_max->list.prev, element_t, list);
-        if (strcmp(p->value, c_max->value) >= 0) {
+        p = list_entry(c_max->list.next, element_t, list);
+        if (strcmp(p->value, c_max->value) < 0) {
             list_del(&p->list);
             q_release_element(p);
         } else
@@ -299,12 +301,14 @@ int q_descend(struct list_head *head)
     // https://leetcode.com/problems/remove-nodes-from-linked-list/
     if (!head || list_empty(head))
         return 0;  // `head` is NULL, or there's no list in `head`
+    if (list_is_singular(head))
+        return 1;
     // this section cares about value in 'element_t' structure
     struct list_head *curr = head->prev;
     element_t *p, *c_max = list_entry(curr, element_t, list);
     for (; c_max->list.prev != head;) {
         p = list_entry(c_max->list.prev, element_t, list);
-        if (strcmp(p->value, c_max->value) <= 0) {
+        if (strcmp(p->value, c_max->value) < 0) {
             list_del(&p->list);
             q_release_element(p);
         } else
