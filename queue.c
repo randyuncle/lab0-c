@@ -205,7 +205,8 @@ void q_reverseK(struct list_head *head, int k)
 
 /* Merging two independent list */
 struct list_head *merge_two_list(struct list_head *left,
-                                 struct list_head *right)
+                                 struct list_head *right,
+                                 bool descend)
 {
     // reference: 你所不知道的 C 語言: linked list 和非連續記憶體
     struct list_head *head = NULL;
@@ -213,7 +214,8 @@ struct list_head *merge_two_list(struct list_head *left,
     for (; left && right; p = &((*p)->next)) {
         element_t *l = list_entry(left, element_t, list);
         element_t *r = list_entry(right, element_t, list);
-        if (strcmp(l->value, r->value) < 0) {
+        if ((!descend && strcmp(l->value, r->value) < 0) ||
+            (descend && strcmp(l->value, r->value) > 0)) {
             *p = left;
             left = left->next;
         } else {
@@ -227,7 +229,9 @@ struct list_head *merge_two_list(struct list_head *left,
 }
 
 /* Doing the list seperation for merge sort (divide and conquer) */
-struct list_head *divide(struct list_head *head, struct list_head *end)
+struct list_head *divide(struct list_head *head,
+                         struct list_head *end,
+                         bool descend)
 {
     if (head == end)
         return head;
@@ -242,10 +246,10 @@ struct list_head *divide(struct list_head *head, struct list_head *end)
     foreward->next = NULL;
     backward->prev = NULL;
     // keep divide until hit the break point
-    struct list_head *left = divide(head, foreward);
-    struct list_head *right = divide(backward, end);
+    struct list_head *left = divide(head, foreward, descend);
+    struct list_head *right = divide(backward, end, descend);
     // conquer the partitions
-    return merge_two_list(left, right);
+    return merge_two_list(left, right, descend);
 }
 
 /* Sort elements of queue in ascending/descending order */
@@ -258,7 +262,7 @@ void q_sort(struct list_head *head, bool descend)
     // make the list no longer be circular
     end->next = NULL;
     head->next->prev = NULL;
-    head->next = divide(head->next, end);
+    head->next = divide(head->next, end, descend);
     // make the list to be circular again (move the head back)
     struct list_head *curr;
     for (curr = head; curr->next; curr = curr->next)
@@ -272,7 +276,20 @@ void q_sort(struct list_head *head, bool descend)
 int q_ascend(struct list_head *head)
 {
     // https://leetcode.com/problems/remove-nodes-from-linked-list/
-    return 0;
+    if (!head || list_empty(head))
+        return 0;  // `head` is NULL, or there's no list in `head`
+    // this section cares about value in 'element_t' structure
+    struct list_head *curr = head->prev;
+    element_t *p, *c_max = list_entry(curr, element_t, list);
+    for (; c_max->list.prev != head;) {
+        p = list_entry(c_max->list.prev, element_t, list);
+        if (strcmp(p->value, c_max->value) >= 0) {
+            list_del(&p->list);
+            q_release_element(p);
+        } else
+            c_max = p;
+    }
+    return q_size(head);
 }
 
 /* Remove every node which has a node with a strictly greater value anywhere to
