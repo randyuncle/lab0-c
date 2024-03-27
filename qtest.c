@@ -178,6 +178,78 @@ static void fill_rand_string(char *buf, size_t buf_size)
     buf[len] = '\0';
 }
 
+/**
+ * A function to join the split list with the guarantee of the `next` pointer
+ * in the `struct list_head` structure.
+ */
+static struct list_head *worst_merge_join(struct list_head *left_head,
+                                          struct list_head *right_head)
+{
+    struct list_head *head = NULL;
+    struct list_head **p = &head;
+    for (; left_head; p = &((*p)->next), left_head = left_head->next)
+        *p = left_head;
+    for (; right_head; p = &((*p)->next), right_head = right_head->next)
+        *p = right_head;
+    return head;
+}
+
+/**
+ * A function to reorganize a continious string list to the worst case of merge
+ * sort with bottom-up recursive call implementation.
+ */
+static struct list_head *worst_merge_split(struct list_head *head)
+{
+    if (head != NULL && head->next != NULL) {
+        struct list_head *left_head = NULL, *right_head = NULL;
+        // Find the left_head and right_head
+        struct list_head *curr = head;
+        struct list_head **pl = &left_head;
+        struct list_head **pr = &right_head;
+        // apply the code with pointer of pointer
+        for (int count = 1; curr != NULL; curr = curr->next, count++) {
+            if (count % 2) {  // odd case
+                *pl = curr;
+                pl = &((*pl)->next);
+            } else {  // even case
+                *pr = curr;
+                pr = &((*pr)->next);
+            }
+        }
+
+        *pl = NULL;
+        *pr = NULL;
+
+        // Recursive split
+        left_head = worst_merge_split(left_head);
+        right_head = worst_merge_split(right_head);
+        // List joining
+        return worst_merge_join(left_head, right_head);
+    }
+
+    return head;
+}
+
+/**
+ * A function to generate the continious strings.
+ * Start from `a` to maximum of the given string length [num].
+ */
+static void fill_cont_string(char *buf, size_t buf_size, int counter)
+{
+    for (size_t i = 0; i < buf_size; i++) {
+        buf[i] = charset[0];
+    }
+
+    int num = counter + 1;
+    size_t index = buf_size - 1;
+    do {
+        if ((num - 1) % 26 >= 0 && index != (buf_size - 1))
+            num++;
+        buf[index--] = charset[(num - 1) % 26];
+        num = (num - 1) / 26;
+    } while (num != 0);
+}
+
 /* insertion */
 static bool queue_insert(position_t pos, int argc, char *argv[])
 {
@@ -198,9 +270,9 @@ static bool queue_insert(position_t pos, int argc, char *argv[])
     }
 
     char *lasts = NULL;
-    char randstr_buf[MAX_RANDSTR_LEN];
+    char randstr_buf[MAX_RANDSTR_LEN], worststr_buf[MAX_RANDSTR_LEN];
     int reps = 1;
-    bool ok = true, need_rand = false;
+    bool ok = true, need_rand = false, need_worse = false;
     if (argc != 2 && argc != 3) {
         report(1, "%s needs 1-2 arguments", argv[0]);
         return false;
@@ -217,6 +289,9 @@ static bool queue_insert(position_t pos, int argc, char *argv[])
     if (!strcmp(inserts, "RAND")) {
         need_rand = true;
         inserts = randstr_buf;
+    } else if (!strcmp(inserts, "WORST")) {
+        need_worse = true;
+        inserts = worststr_buf;
     }
 
     if (!current || !current->q)
@@ -228,6 +303,8 @@ static bool queue_insert(position_t pos, int argc, char *argv[])
         for (int r = 0; ok && r < reps; r++) {
             if (need_rand)
                 fill_rand_string(randstr_buf, sizeof(randstr_buf));
+            else if (need_worse)
+                fill_cont_string(worststr_buf, sizeof(worststr_buf), r);
             bool rval = pos == POS_TAIL ? q_insert_tail(current->q, inserts)
                                         : q_insert_head(current->q, inserts);
             if (rval) {
@@ -269,6 +346,25 @@ static bool queue_insert(position_t pos, int argc, char *argv[])
         }
     }
     exception_cancel();
+
+    /* For the WORST argument, we need to reorganize the continious strings to
+     * worst case scenatio */
+    if (need_worse) {
+        struct list_head *head = current->q;
+        struct list_head *end = head->prev;
+        // make the list no longer be circular
+        end->next = NULL;
+        head->next->prev = NULL;
+        // generate worst case
+        head->next = worst_merge_split(head->next);
+        // make the list be circular again
+        struct list_head *curr;
+        int count = 0;
+        for (curr = head; curr->next; curr = curr->next, count++)
+            curr->next->prev = curr;
+        curr->next = head;
+        curr->next->prev = curr;
+    }
 
     q_show(3);
     return ok;

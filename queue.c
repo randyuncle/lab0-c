@@ -279,20 +279,6 @@ void self_q_sort(struct list_head *head, bool descend)
 
 /* Start of the list_sort */
 
-/** One of the definitions of `likely` and `unlikely` from <linux/compiler.h>
- *
- * @bug These definitions encountered an error outside the Linux kernel
- * environment.
- *        - Error code: implicit declaration of function ‘__branch_check__’
- *
- * #ifndef likely
- * #define likely(x) (__branch_check__(x, 1, __builtin_constant_p(x)))
- * #endif
- * #ifndef unlikely
- * #define unlikely(x) (__branch_check__(x, 0, __builtin_constant_p(x)))
- * #endif
- */
-
 /**
  * The following `likely` and `unlikely` definition from <linux/compiler.h>
  * only requires the `__builtin_expect()` in gnu gcc.
@@ -382,7 +368,7 @@ static void merge_final(list_cmp_func_t cmp,
          * element comparison is needed, so the client's cmp()
          * routine can invoke cond_resched() periodically.
          */
-        if (unlikely(!++count)) /* from gcc __builtin_except  */
+        if (unlikely(!++count))
             cmp(b, b);
         b->prev = tail;
         tail = b;
@@ -413,7 +399,7 @@ void list_sort(struct list_head *head, list_cmp_func_t cmp)
         for (bits = count; bits & 1; bits >>= 1)
             tail = &(*tail)->prev;
         /* Do the indicated merge */
-        if (likely(bits)) { /* from gcc __builtin_except  */
+        if (likely(bits)) {
             struct list_head *a = *tail, *b = a->prev;
 
             a = merge(cmp, b, a);

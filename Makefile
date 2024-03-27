@@ -59,6 +59,20 @@ check: qtest
 test: qtest scripts/driver.py
 	scripts/driver.py -c
 
+sort_exp: qtest
+	@if [ -d "sort_prf" ]; then echo "Dir `sort_prf` exists"; else mkdir sort_prf; fi
+	@for number in $$(seq 1 5) ; \
+	do \
+		perf stat -e task-clock,page-faults,branches,branch-misses,cycles,instructions,L1-dcache-loads,L1-dcache-load-misses --repeat 10 ./$< -f test/sort-test-$$number.cmd > sort_prf/list-sort-prf-$$number.txt ; \
+	done
+
+sort_worst_exp: qtest
+	@if [ -d "sort_worst_prf" ]; then echo "Dir `sort_worst_prf` exists"; else mkdir sort_worst_prf; fi
+	@for number in $$(seq 1 5) ; \
+	do \
+		perf stat -e task-clock,page-faults,branches,branch-misses,cycles,instructions,L1-dcache-loads,L1-dcache-load-misses --repeat 10 ./$< -f test_worst/sort-test-$$number.cmd > sort_worst_prf/list-sort-prf-$$number.txt ; \
+	done
+
 valgrind_existence:
 	@which valgrind 2>&1 > /dev/null || (echo "FATAL: valgrind not found"; exit 1)
 
