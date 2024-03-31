@@ -234,7 +234,7 @@ static struct list_head *worst_merge_split(struct list_head *head)
  * A function to generate the continious strings.
  * Start from `a` to maximum of the given string length [num].
  */
-static void fill_cont_string(char *buf, size_t buf_size, int counter)
+static void fill_cont_full_string(char *buf, size_t buf_size, int counter)
 {
     for (size_t i = 0; i < buf_size; i++) {
         buf[i] = charset[0];
@@ -304,7 +304,7 @@ static bool queue_insert(position_t pos, int argc, char *argv[])
             if (need_rand)
                 fill_rand_string(randstr_buf, sizeof(randstr_buf));
             else if (need_worse)
-                fill_cont_string(worststr_buf, sizeof(worststr_buf), r);
+                fill_cont_full_string(worststr_buf, sizeof(worststr_buf), r);
             bool rval = pos == POS_TAIL ? q_insert_tail(current->q, inserts)
                                         : q_insert_head(current->q, inserts);
             if (rval) {
@@ -368,6 +368,77 @@ static bool queue_insert(position_t pos, int argc, char *argv[])
 
     q_show(3);
     return ok;
+}
+
+/**
+ * list_swap - replace entry1 with entry2 and re-add entry1 at entry2's position
+ * @entry1: the location to place entry2
+ * @entry2: the location to place entry1
+ */
+static inline void list_swap(struct list_head *entry1, struct list_head *entry2)
+{
+    struct list_head *pos = entry2->prev;
+
+    list_del(entry2);
+
+    entry2->next = entry1->next;
+    entry2->next->prev = entry2;
+    entry2->prev = entry1->prev;
+    entry2->prev->next = entry2;
+
+    if (pos == entry1)
+        pos = entry2;
+    list_add(entry1, pos);
+}
+
+/* the shuffle algorithm introduced by Fisher–Yates */
+static void shuffle(struct list_head *head)
+{
+    int len = q_size(head);
+    struct list_head *pos, *safe;
+    /* similar as `list_for_each_entry_safe` in Linux Kernel List Management API
+     */
+    for (pos = head->next, safe = pos->next; pos != head && len;
+         pos = safe, safe = safe->next, len--) {
+        struct list_head *j = head->next;
+        /* randomly choose a number between 0~(len - 1) */
+        for (int r = rand() % len; r;
+             r--) /* the seed `srand` had been defined in qtest*/
+            j = j->next;
+        if (pos == j)
+            continue;
+        list_swap(pos, j); /* from Linux Kernel List Management API */
+    }
+}
+
+/* shuffle the elements in queue linked-list */
+static bool do_shuffle(int argc, char *argv[])
+{
+    if (argc != 1) {
+        report(1, "%s does not need arguments in the command shuffle", argv[0]);
+        return false;
+    }
+
+    bool ok = true;
+
+    if (!current || list_empty(current->q)) {
+        report(3, "Warning: Calling shuffle on an empty queue");
+        ok = false;
+    }
+    error_check();
+
+    if (ok && list_is_singular(current->q)) {
+        report(3, "Warning: Calling shuffle on a queue with singlular node");
+        ok = false;
+    }
+    error_check();
+
+    if (ok && exception_setup(true))
+        shuffle(current->q);
+    exception_cancel();
+
+    q_show(3);
+    return ok && !error_check();
 }
 
 /* insert head */
@@ -1148,6 +1219,10 @@ static void console_init()
                 "");
     ADD_COMMAND(reverseK, "Reverse the nodes of the queue 'K' at a time",
                 "[K]");
+    ADD_COMMAND(shuffle,
+                "Shuffle the elements in the linked-list with Fisher–Yates "
+                "shuffle technique.",
+                "");
     add_param("length", &string_length, "Maximum length of displayed string",
               NULL);
     add_param("malloc", &fail_probability, "Malloc failure probability percent",
