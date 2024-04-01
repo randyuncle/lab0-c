@@ -241,11 +241,11 @@ static void fill_cont_full_string(char *buf, size_t buf_size, int counter)
     }
 
     int num = counter + 1;
-    size_t index = buf_size - 1;
+    size_t index = 0;
     do {
-        if ((num - 1) % 26 >= 0 && index != (buf_size - 1))
+        if ((num - 1) % 26 >= 0 && index != (0))
             num++;
-        buf[index--] = charset[(num - 1) % 26];
+        buf[index++] = charset[(num - 1) % 26];
         num = (num - 1) / 26;
     } while (num != 0);
 }
