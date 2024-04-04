@@ -152,7 +152,6 @@ void list_sort(struct list_head *head, list_cmp_func_t cmp)
 /* Sort elements of queue in ascending/descending order by `list_sort.c` */
 void q_list_sort(struct list_head *head, bool descend)
 {
-    // merge sort machemic
     if (!head || list_empty(head) || list_is_singular(head))
         return;  // `head` is NULL, no list in `head`, or one element
     list_sort(head, list_cmp);

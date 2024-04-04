@@ -261,7 +261,7 @@ struct list_head *divide(struct list_head *head,
 /* Sort elements of queue in ascending/descending order */
 void q_sort(struct list_head *head, bool descend)
 {
-    // merge sort machemic
+    // merge sort mechanic
     if (!head || list_empty(head) || list_is_singular(head))
         return;  // `head` is NULL, no list in `head`, or one element
     struct list_head *end = head->prev;
