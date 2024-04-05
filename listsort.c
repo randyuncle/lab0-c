@@ -7,15 +7,25 @@
 #include "listsort.h"
 #include "queue.h"
 
-int list_cmp(const struct list_head *a, const struct list_head *b)
+int list_cmp(void *priv, const struct list_head *a, const struct list_head *b)
 {
     element_t *element_a = list_entry(a, element_t, list);
     element_t *element_b = list_entry(b, element_t, list);
 
-    return strcmp(element_a->value, element_b->value);
+    int res = strcmp(element_a->value, element_b->value);
+
+    /* if a and b were the same, did not count it as comparison */
+    if (!res)
+        return 0;
+
+    if (priv)
+        *((int *) priv) += 1;
+
+    return res;
 }
 
-static struct list_head *merge(list_cmp_func_t cmp,
+static struct list_head *merge(void *priv,
+                               list_cmp_func_t cmp,
                                struct list_head *a,
                                struct list_head *b)
 {
@@ -23,7 +33,7 @@ static struct list_head *merge(list_cmp_func_t cmp,
 
     for (;;) {
         /* if equal, take 'a' -- important for sort stability */
-        if (cmp(a, b) <= 0) {
+        if (cmp(priv, a, b) <= 0) {
             *tail = a;
             tail = &a->next;
             a = a->next;
@@ -44,7 +54,8 @@ static struct list_head *merge(list_cmp_func_t cmp,
     return head;
 }
 
-static void merge_final(list_cmp_func_t cmp,
+static void merge_final(void *priv,
+                        list_cmp_func_t cmp,
                         struct list_head *head,
                         struct list_head *a,
                         struct list_head *b)
@@ -57,7 +68,7 @@ static void merge_final(list_cmp_func_t cmp,
 
     for (;;) {
         /* if equal, take 'a' -- important for sort stability */
-        if (cmp(a, b) <= 0) {
+        if (cmp(priv, a, b) <= 0) {
             tail->next = a;
             a->prev = tail;
             tail = a;
@@ -87,7 +98,7 @@ static void merge_final(list_cmp_func_t cmp,
          * routine can invoke cond_resched() periodically.
          */
         if (unlikely(!++count))
-            cmp(b, b);
+            cmp(priv, b, b);
         b->prev = tail;
         tail = b;
         b = b->next;
@@ -98,7 +109,7 @@ static void merge_final(list_cmp_func_t cmp,
     head->prev = tail;
 }
 
-void list_sort(struct list_head *head, list_cmp_func_t cmp)
+void list_sort(void *priv, struct list_head *head, list_cmp_func_t cmp)
 {
     struct list_head *list = head->next, *pending = NULL;
     size_t count = 0; /* Count of pending */
@@ -120,7 +131,7 @@ void list_sort(struct list_head *head, list_cmp_func_t cmp)
         if (likely(bits)) {
             struct list_head *a = *tail, *b = a->prev;
 
-            a = merge(cmp, b, a);
+            a = merge(priv, cmp, b, a);
             /* Install the merged result in place of the inputs */
             a->prev = b->prev;
             *tail = a;
@@ -142,19 +153,19 @@ void list_sort(struct list_head *head, list_cmp_func_t cmp)
 
         if (!next)
             break;
-        list = merge(cmp, pending, list);
+        list = merge(priv, cmp, pending, list);
         pending = next;
     }
     /* The final merge, rebuilding prev links */
-    merge_final(cmp, head, pending, list);
+    merge_final(priv, cmp, head, pending, list);
 }
 
 /* Sort elements of queue in ascending/descending order by `list_sort.c` */
-void q_list_sort(struct list_head *head, bool descend)
+void q_list_sort(void *priv, struct list_head *head, bool descend)
 {
     if (!head || list_empty(head) || list_is_singular(head))
         return;  // `head` is NULL, no list in `head`, or one element
-    list_sort(head, list_cmp);
+    list_sort(priv, head, list_cmp);
     if (descend)
         q_reverse(head);
 }

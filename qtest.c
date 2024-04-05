@@ -23,6 +23,7 @@
 #include "list.h"
 #include "listsort.h"
 #include "random.h"
+#include "timsort.h"
 
 /* Shannon entropy */
 extern double shannon_entropy(const uint8_t *input_data);
@@ -744,8 +745,7 @@ static bool do_size(int argc, char *argv[])
     return ok && !error_check();
 }
 
-/* make the interpreter could apply lib/list_sort */
-bool do_ksort(int argc, char *argv[])
+bool do_tsort(int argc, char *argv[])
 {
     if (argc != 1) {
         report(1, "%s takes no arguments", argv[0]);
@@ -763,9 +763,13 @@ bool do_ksort(int argc, char *argv[])
         report(3, "Warning: Calling sort on single node");
     error_check();
 
+    int count = 0;
+
     set_noallocate_mode(true);
-    if (current && exception_setup(true))
-        q_list_sort(current->q, descend);
+    if (current && exception_setup(true)) {
+        printf("==== Testing timsort ====\n");
+        q_timsort(&count, current->q, descend);
+    }
     exception_cancel();
     set_noallocate_mode(false);
 
@@ -792,6 +796,65 @@ bool do_ksort(int argc, char *argv[])
     }
 
     q_show(3);
+
+    printf("  Comparisons:    %d\n", count);
+    return ok && !error_check();
+}
+
+/* make the interpreter could apply lib/list_sort */
+bool do_ksort(int argc, char *argv[])
+{
+    if (argc != 1) {
+        report(1, "%s takes no arguments", argv[0]);
+        return false;
+    }
+
+    int cnt = 0;
+    if (!current || !current->q)
+        report(3, "Warning: Calling sort on null queue");
+    else
+        cnt = q_size(current->q);
+    error_check();
+
+    if (cnt < 2)
+        report(3, "Warning: Calling sort on single node");
+    error_check();
+
+    int count = 0;
+
+    set_noallocate_mode(true);
+    if (current && exception_setup(true)) {
+        printf("==== Testing listsort ====\n");
+        q_list_sort(&count, current->q, descend);
+    }
+    exception_cancel();
+    set_noallocate_mode(false);
+
+    bool ok = true;
+    if (current && current->size) {
+        for (struct list_head *cur_l = current->q->next;
+             cur_l != current->q && --cnt; cur_l = cur_l->next) {
+            /* Ensure each element in ascending/descending order */
+            element_t *item, *next_item;
+            item = list_entry(cur_l, element_t, list);
+            next_item = list_entry(cur_l->next, element_t, list);
+            if (!descend && strcmp(item->value, next_item->value) > 0) {
+                report(1, "ERROR: Not sorted in ascending order");
+                ok = false;
+                break;
+            }
+
+            if (descend && strcmp(item->value, next_item->value) < 0) {
+                report(1, "ERROR: Not sorted in descending order");
+                ok = false;
+                break;
+            }
+        }
+    }
+
+    q_show(3);
+
+    printf("  Comparisons:    %d\n", count);
     return ok && !error_check();
 }
 
@@ -1302,6 +1365,8 @@ static void console_init()
     ADD_COMMAND(ksort,
                 "Sort queue in ascending/descening order by `lib/list_sort` in "
                 "Linux kernel",
+                "");
+    ADD_COMMAND(tsort, "Sort queue in ascending/descening order by timsort",
                 "");
     ADD_COMMAND(size, "Compute queue size n times (default: n == 1)", "[n]");
     ADD_COMMAND(show, "Show queue contents", "");
