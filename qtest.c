@@ -23,7 +23,7 @@
 #include "list.h"
 #include "listsort.h"
 #include "random.h"
-//#include "sort_test.h"
+#include "sort_test.h"
 #include "timsort.h"
 
 /* Shannon entropy */
@@ -482,6 +482,23 @@ static bool queue_insert(position_t pos, int argc, char *argv[])
 
     q_show(3);
     cnt = 0;
+    return ok;
+}
+
+#define MIN_NODE 4
+#define MAX_NODE 16384  // 2^14
+
+static inline bool do_stest(int argc, char *argv[])
+{
+    bool ok = true;
+
+    for (int nums = MIN_NODE; nums <= MAX_NODE && ok; nums++) {
+        if (nums % 1024 == 0)
+            printf("Finish %.2f percent\n", ((double) nums / MAX_NODE) * 100);
+        for (int i = 0; i < 6 && ok; i++) {
+            ok = sort_test(i, nums);
+        }
+    }
     return ok;
 }
 
@@ -1487,6 +1504,10 @@ static void console_init()
     ADD_COMMAND(shuffle,
                 "Shuffle the elements in the linked-list with Fisher–Yates "
                 "shuffle technique.",
+                "");
+    ADD_COMMAND(stest,
+                "Conduct a sorting test using the provided data distribution "
+                "on the sorting algorithms in this program.",
                 "");
     add_param("length", &string_length, "Maximum length of displayed string",
               NULL);
