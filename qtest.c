@@ -23,6 +23,7 @@
 #include "list.h"
 #include "listsort.h"
 #include "random.h"
+//#include "sort_test.h"
 #include "timsort.h"
 
 /* Shannon entropy */
@@ -234,24 +235,55 @@ static struct list_head *worst_merge_split(struct list_head *head)
     return head;
 }
 
+/* set the bias for generating continious string */
+static size_t set_bias(int count, size_t max_buf)
+{
+    int num = count - 1;
+    size_t size = 0;
+    do {
+        if ((num - 1) % 26 >= 0 && size != 0)
+            num++;
+        size++;
+        num = (num - 1) / 26;
+    } while (num != 0);
+    return max_buf - size;
+}
+
 /**
  * A function to generate the continious strings.
- * Start from `a` to maximum of the given string length [num].
+ * Start from `aaaaaaaaaa` to maximum of the given string length [num].
  */
-static void fill_cont_full_string(char *buf, size_t buf_size, int counter)
+static void fill_cont_full_string(char *buf,
+                                  size_t buf_size,
+                                  int counter,
+                                  int bias)
 {
     for (size_t i = 0; i < buf_size; i++) {
         buf[i] = charset[0];
     }
 
     int num = counter + 1;
-    size_t index = buf_size - 1;
+    size_t index = buf_size - 1 - bias;
     do {
-        if ((num - 1) % 26 >= 0 && index != (buf_size - 1))
+        if ((num - 1) % 26 >= 0 && index != (buf_size - 1 - bias))
             num++;
         buf[index--] = charset[(num - 1) % 26];
         num = (num - 1) / 26;
     } while (num != 0);
+
+    /* A fail way to generate continious string */
+    // for (size_t i = 0; i < buf_size; i++) {
+    //     buf[i] = charset[0];
+    // }
+
+    // int num = counter + 1;
+    // size_t index = 0;
+    // do {
+    //     if ((num - 1) % 26 >= 0 && index != (0))
+    //         num++;
+    //     buf[index++] = charset[(num - 1) % 26];
+    //     num = (num - 1) / 26;
+    // } while (num != 0);
 }
 
 /* insertion */
@@ -276,7 +308,9 @@ static bool queue_insert(position_t pos, int argc, char *argv[])
     char *lasts = NULL;
     char randstr_buf[MAX_RANDSTR_LEN], worststr_buf[MAX_RANDSTR_LEN];
     int reps = 1;
-    bool ok = true, need_rand = false, need_worse = false;
+    int cnt = 0, exch[100000];
+    bool ok = true, dup = false, need_rand = false, need_worse = false;
+    bool is_three = false, is_lten = false, is_onep = false, is_dup = false;
     if (argc != 2 && argc != 3) {
         report(1, "%s needs 1-2 arguments", argv[0]);
         return false;
@@ -290,12 +324,61 @@ static bool queue_insert(position_t pos, int argc, char *argv[])
         }
     }
 
+    size_t bias = set_bias(reps, MAX_RANDSTR_LEN);
+    ;
     if (!strcmp(inserts, "RAND")) {
         need_rand = true;
         inserts = randstr_buf;
     } else if (!strcmp(inserts, "WORST")) {
         need_worse = true;
         inserts = worststr_buf;
+    } else if (!strcmp(inserts, "RAND3")) {
+        for (int i = 0; i < 3; i++) {
+            exch[i] = rand() % reps;
+            for (int j = 0; j < i; j++) {
+                if (exch[i] == exch[j])
+                    i--;
+            }
+        }
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < i; j++) {
+                if (exch[i] < exch[j]) {
+                    int temp = exch[i];
+                    exch[i] = exch[j];
+                    exch[j] = temp;
+                }
+            }
+        }
+        is_three = true;
+        inserts = worststr_buf;
+    } else if (!strcmp(inserts, "RANDL10")) {
+        is_lten = true;
+        inserts = worststr_buf;
+    } else if (!strcmp(inserts, "RAND1P")) {
+        int num = reps * 0.01;
+        for (int i = 0; i < num; i++) {
+            exch[i] = rand() % reps;
+            for (int j = 0; j < i; j++) {
+                if (exch[i] == exch[j]) {
+                    i--;
+                    break;
+                }
+            }
+        }
+        for (int i = 0; i < num; i++) {
+            for (int j = 0; j < i; j++) {
+                if (exch[i] < exch[j]) {
+                    int temp = exch[i];
+                    exch[i] = exch[j];
+                    exch[j] = temp;
+                }
+            }
+        }
+        is_onep = true;
+        inserts = worststr_buf;
+    } else if (!strcmp(inserts, "DUP")) {
+        is_dup = true;
+        inserts = randstr_buf;
     }
 
     if (!current || !current->q)
@@ -308,7 +391,35 @@ static bool queue_insert(position_t pos, int argc, char *argv[])
             if (need_rand)
                 fill_rand_string(randstr_buf, sizeof(randstr_buf));
             else if (need_worse)
-                fill_cont_full_string(worststr_buf, sizeof(worststr_buf), r);
+                fill_cont_full_string(worststr_buf, sizeof(worststr_buf), r,
+                                      bias);
+            else if (is_three) {
+                if (r == exch[cnt]) {
+                    fill_rand_string(worststr_buf, sizeof(worststr_buf));
+                    cnt++;
+                } else
+                    fill_cont_full_string(worststr_buf, sizeof(worststr_buf), r,
+                                          bias);
+            } else if (is_lten) {
+                if (r < reps - 10)
+                    fill_cont_full_string(worststr_buf, sizeof(worststr_buf), r,
+                                          bias);
+                else
+                    fill_rand_string(worststr_buf, sizeof(worststr_buf));
+            } else if (is_onep) {
+                if (r == exch[cnt]) {
+                    fill_rand_string(worststr_buf, sizeof(worststr_buf));
+                    cnt++;
+                } else
+                    fill_cont_full_string(worststr_buf, sizeof(worststr_buf), r,
+                                          bias);
+            } else if (is_dup) {
+                if (r == 0 || (!dup && !(rand() % 2))) {
+                    cnt = !cnt ? (rand() % 100 + 1) : cnt;
+                    fill_rand_string(randstr_buf, sizeof(randstr_buf));
+                } else
+                    dup = (--cnt) ? true : false;
+            }
             bool rval = pos == POS_TAIL ? q_insert_tail(current->q, inserts)
                                         : q_insert_head(current->q, inserts);
             if (rval) {
@@ -363,36 +474,15 @@ static bool queue_insert(position_t pos, int argc, char *argv[])
         head->next = worst_merge_split(head->next);
         // make the list be circular again
         struct list_head *curr;
-        int count = 0;
-        for (curr = head; curr->next; curr = curr->next, count++)
+        for (curr = head; curr->next; curr = curr->next)
             curr->next->prev = curr;
         curr->next = head;
         curr->next->prev = curr;
     }
 
     q_show(3);
+    cnt = 0;
     return ok;
-}
-
-/**
- * list_swap - replace entry1 with entry2 and re-add entry1 at entry2's position
- * @entry1: the location to place entry2
- * @entry2: the location to place entry1
- */
-static inline void list_swap(struct list_head *entry1, struct list_head *entry2)
-{
-    struct list_head *pos = entry2->prev;
-
-    list_del(entry2);
-
-    entry2->next = entry1->next;
-    entry2->next->prev = entry2;
-    entry2->prev = entry1->prev;
-    entry2->prev->next = entry2;
-
-    if (pos == entry1)
-        pos = entry2;
-    list_add(entry1, pos);
 }
 
 /* the shuffle algorithm introduced by Fisher–Yates */
@@ -747,10 +837,14 @@ static bool do_size(int argc, char *argv[])
 
 bool do_tsort(int argc, char *argv[])
 {
-    if (argc != 1) {
-        report(1, "%s takes no arguments", argv[0]);
+    if (argc > 2) {
+        report(1, "too much argument for %s", argv[0]);
         return false;
     }
+
+    char *name = NULL;
+    if (argc == 2)
+        name = argv[1];
 
     int cnt = 0;
     if (!current || !current->q)
@@ -767,8 +861,14 @@ bool do_tsort(int argc, char *argv[])
 
     set_noallocate_mode(true);
     if (current && exception_setup(true)) {
-        printf("==== Testing timsort ====\n");
-        q_timsort(&count, current->q, descend);
+        if (!name || !strcmp(name, "linear"))
+            q_timsort(&count, current->q, descend);
+        else if (!strcmp(name, "old"))
+            q_timsort_old(&count, current->q, descend);
+        else {
+            report(1, "%s invalid sort name for Tim sort", argv[0]);
+            return false;
+        }
     }
     exception_cancel();
     set_noallocate_mode(false);
@@ -1246,7 +1346,7 @@ static bool q_show(int vlevel)
             element_t *e = list_entry(cur, element_t, list);
             if (cnt < BIG_LIST_SIZE) {
                 report_noreturn(vlevel, cnt == 0 ? "%s" : " %s", e->value);
-                if (show_entropy) {
+                if (show_entropy == 1) {
                     report_noreturn(
                         vlevel, "(%3.2f%%)",
                         shannon_entropy((const uint8_t *) e->value));

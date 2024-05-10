@@ -12,6 +12,8 @@
 
 #include "harness.h"
 #include "list.h"
+#include "listsort.h"
+#include "timsort.h"
 
 /**
  * element_t - Linked list element
@@ -23,6 +25,7 @@
 typedef struct {
     char *value;
     struct list_head list;
+    int seq;
 } element_t;
 
 /**
@@ -191,6 +194,17 @@ void q_reverse(struct list_head *head);
 void q_reverseK(struct list_head *head, int k);
 
 /**
+ * sort() - Sorting function for external program to call
+ * @priv: the argument for the comparison function
+ * @head: header of queue
+ * @cmp: the comparison function
+ *
+ * No effect if queue is NULL or empty. If there has only one element, do
+ * nothing.
+ */
+void sort(void *priv, struct list_head *head, list_cmp_func_t cmp);
+
+/**
  * q_sort() - Sort elements of queue in ascending/descending order
  * @head: header of queue
  * @descend: whether or not to sort in descending order
@@ -199,6 +213,42 @@ void q_reverseK(struct list_head *head, int k);
  * nothing.
  */
 void q_sort(struct list_head *head, bool descend);
+
+/**
+ * q_list_sort() - Sort elements of queue in ascending/descending order by
+ * `list_sort.c`
+ * @priv: the argument for the comparison function
+ * @head: header of queue
+ * @descend: whether or not to sort in descending order
+ *
+ * No effect if queue is NULL or empty. If there has only one element, do
+ * nothing.
+ */
+void q_list_sort(void *priv, struct list_head *head, bool descend);
+
+/**
+ * q_timsort() - Sort elements of queue in ascending/descending order by Tim
+ * sort
+ * @priv: the argument for the comparison function
+ * @head: header of queue
+ * @descend: whether or not to sort in descending order
+ *
+ * No effect if queue is NULL or empty. If there has only one element, do
+ * nothing.
+ */
+void q_timsort_old(void *priv, struct list_head *head, bool descend);
+
+/**
+ * q_timsort() - Sort elements of queue in ascending/descending order by Tim
+ * sort with minrun implementation
+ * @priv: the argument for the comparison function
+ * @head: header of queue
+ * @descend: whether or not to sort in descending order
+ *
+ * No effect if queue is NULL or empty. If there has only one element, do
+ * nothing.
+ */
+void q_timsort(void *priv, struct list_head *head, bool descend);
 
 /**
  * q_ascend() - Remove every node which has a node with a strictly less

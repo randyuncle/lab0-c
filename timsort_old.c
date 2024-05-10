@@ -6,8 +6,6 @@
 #include "queue.h"
 #include "timsort.h"
 
-int minrun = 0;
-
 static inline size_t run_size(struct list_head *head)
 {
     if (!head)
@@ -139,91 +137,6 @@ static struct pair find_run(void *priv,
         list->next = NULL;
     }
 
-    // rebuild the prev links for each node (important step if need to do
-    // insertion sort)
-    for (struct list_head *curr = head; curr && curr->next; curr = curr->next)
-        curr->next->prev = curr;
-
-    // insertion sort for inserting the elements for making every run be
-    // approximately equal length.
-    for (struct list_head *in_node = next; in_node && len < minrun; len++) {
-        // printf("start insert len = %ld\n", len);
-        struct list_head *safe = in_node->next;
-
-        // case for first node hit
-        if (!(cmp(priv, in_node, head) > 0)) {
-            in_node->next = head;
-            head->prev = in_node;
-            head = in_node;
-            // printf("head chg - head: %s ; prev head: %s\n", list_entry(head,
-            // element_t, list)->value, list_entry(head->next, element_t,
-            // list)->value);
-
-            in_node = safe;
-            next = in_node;
-
-            continue;
-        }
-
-        struct list_head *prev = head, *curr = head->next;
-        // printf("*start* - prev: %s ; curr: %s\n", list_entry(prev, element_t,
-        // list)->value, list_entry(curr, element_t, list)->value);
-
-        // Compare and find the space to insert the node by "galloping"
-        // searching.
-        while (curr && prev) {
-            if (cmp(priv, in_node, curr) > 0) {
-                if (curr->next) {
-                    if (curr->next->next) {
-                        prev = curr->next;
-                        curr = curr->next->next;
-                        // printf("step 2 - prev: %s ; curr: %s\n",
-                        // list_entry(prev, element_t, list)->value,
-                        // list_entry(curr, element_t, list)->value);
-                    } else {
-                        prev = curr;
-                        curr = curr->next;
-                        // printf("step 1 - prev: %s ; curr: %s\n",
-                        // list_entry(prev, element_t, list)->value,
-                        // list_entry(curr, element_t, list)->value);
-                    }
-                } else {
-                    prev = curr;
-                    curr = NULL;
-                    // printf("prev: %s\n", list_entry(prev, element_t,
-                    // list)->value);
-                    break;
-                }
-            } else {
-                if (!(cmp(priv, in_node, prev) > 0)) {
-                    curr = prev;
-                    prev = curr->prev;
-                    // printf("backward\n");
-                }
-                // printf("* The else - prev: %s ; curr: %s\n", list_entry(prev,
-                // element_t, list)->value, list_entry(curr, element_t,
-                // list)->value);
-                break;
-            }
-        }
-
-        // insert to the list
-        in_node->next = curr;
-        in_node->prev = prev;
-        prev->next = in_node;
-        if (curr) {
-            curr->prev = in_node;
-            // printf("in_node output - prev: %s ; next: %s\n",
-            // list_entry(in_node->prev , element_t, list)->value,
-            // list_entry(in_node->next, element_t, list)->value);
-        }  // else
-           // printf("in_node output - prev: %s\n", list_entry(in_node->prev ,
-           // element_t, list)->value);
-
-        in_node = safe;
-        next = in_node;
-    }
-
     head->prev = NULL;
     head->next->prev = (struct list_head *) len;
     result.head = head, result.next = next;
@@ -282,30 +195,12 @@ static struct list_head *merge_collapse(void *priv,
     return tp;
 }
 
-static int find_minrun(int size)
-{
-    int one = 0;
-    if (size) {
-        // To get the first five bits (MAX_MINRUN = 32)
-        while (size > 0x001F) {
-            one = (size & 0x01) ? 1 : one;  // holding carry
-            size >>= 1;
-        }
-    }
-
-    return size + one;
-}
-
-void timsort(void *priv, struct list_head *head, list_cmp_func_t cmp)
+void timsort_old(void *priv, struct list_head *head, list_cmp_func_t cmp)
 {
     if (!head || list_empty(head) || list_is_singular(head))
         return;
 
     stk_size = 0;
-    minrun = find_minrun(q_size(head));
-    // printf("len of min. run = %d\n", minrun);  // at max in 6 bits
-    // printf("q = %d ; r = %d\n", q_size(head) / minrun, q_size(head) %
-    // minrun);
 
     struct list_head *list = head->next, *tp = NULL;
     if (head == head->prev)

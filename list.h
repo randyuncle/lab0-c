@@ -335,6 +335,27 @@ static inline void list_move_tail(struct list_head *node,
 }
 
 /**
+ * list_swap - replace entry1 with entry2 and re-add entry1 at entry2's position
+ * @entry1: the location to place entry2
+ * @entry2: the location to place entry1
+ */
+static inline void list_swap(struct list_head *entry1, struct list_head *entry2)
+{
+    struct list_head *pos = entry2->prev;
+
+    list_del(entry2);
+
+    entry2->next = entry1->next;
+    entry2->next->prev = entry2;
+    entry2->prev = entry1->prev;
+    entry2->prev->next = entry2;
+
+    if (pos == entry1)
+        pos = entry2;
+    list_add(entry1, pos);
+}
+
+/**
  * list_entry() - Get the entry for this node
  * @node: pointer to list node
  * @type: type of the entry containing the list node

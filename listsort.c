@@ -7,23 +7,6 @@
 #include "listsort.h"
 #include "queue.h"
 
-int list_cmp(void *priv, const struct list_head *a, const struct list_head *b)
-{
-    element_t *element_a = list_entry(a, element_t, list);
-    element_t *element_b = list_entry(b, element_t, list);
-
-    int res = strcmp(element_a->value, element_b->value);
-
-    /* if a and b were the same, did not count it as comparison */
-    if (!res)
-        return 0;
-
-    if (priv)
-        *((int *) priv) += 1;
-
-    return res;
-}
-
 static struct list_head *merge(void *priv,
                                list_cmp_func_t cmp,
                                struct list_head *a,
@@ -158,14 +141,4 @@ void list_sort(void *priv, struct list_head *head, list_cmp_func_t cmp)
     }
     /* The final merge, rebuilding prev links */
     merge_final(priv, cmp, head, pending, list);
-}
-
-/* Sort elements of queue in ascending/descending order by `list_sort.c` */
-void q_list_sort(void *priv, struct list_head *head, bool descend)
-{
-    if (!head || list_empty(head) || list_is_singular(head))
-        return;  // `head` is NULL, no list in `head`, or one element
-    list_sort(priv, head, list_cmp);
-    if (descend)
-        q_reverse(head);
 }

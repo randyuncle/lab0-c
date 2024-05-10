@@ -209,19 +209,35 @@ void q_reverseK(struct list_head *head, int k)
     }
 }
 
+int q_cmp(void *priv, const struct list_head *a, const struct list_head *b)
+{
+    element_t *element_a = list_entry(a, element_t, list);
+    element_t *element_b = list_entry(b, element_t, list);
+
+    int res = strcmp(element_a->value, element_b->value);
+
+    if (!res)
+        return 0;
+
+    if (priv)
+        *((int *) priv) += 1;
+
+    return res;
+}
+
 /* Merging two independent list */
-struct list_head *merge_two_list(struct list_head *left,
+struct list_head *merge_two_list(void *priv,
+                                 struct list_head *left,
                                  struct list_head *right,
-                                 bool descend)
+                                 bool descend,
+                                 list_cmp_func_t cmp)
 {
     // reference: 你所不知道的 C 語言: linked list 和非連續記憶體
     struct list_head *head = NULL;
     struct list_head **p = &head;
     for (; left && right; p = &((*p)->next)) {
-        element_t *l = list_entry(left, element_t, list);
-        element_t *r = list_entry(right, element_t, list);
-        if ((!descend && strcmp(l->value, r->value) < 0) ||
-            (descend && strcmp(l->value, r->value) > 0)) {
+        if ((!descend && cmp(priv, left, right) <= 0) ||
+            (descend && cmp(priv, left, right) >= 0)) {
             *p = left;
             left = left->next;
         } else {
@@ -235,9 +251,11 @@ struct list_head *merge_two_list(struct list_head *left,
 }
 
 /* Doing the list seperation for merge sort (divide and conquer) */
-struct list_head *divide(struct list_head *head,
+struct list_head *divide(void *priv,
+                         struct list_head *head,
                          struct list_head *end,
-                         bool descend)
+                         bool descend,
+                         list_cmp_func_t cmp)
 {
     if (head == end)
         return head;
@@ -252,10 +270,28 @@ struct list_head *divide(struct list_head *head,
     foreward->next = NULL;
     backward->prev = NULL;
     // keep divide until hit the break point
-    struct list_head *left = divide(head, foreward, descend);
-    struct list_head *right = divide(backward, end, descend);
+    struct list_head *left = divide(priv, head, foreward, descend, cmp);
+    struct list_head *right = divide(priv, backward, end, descend, cmp);
     // conquer the partitions
-    return merge_two_list(left, right, descend);
+    return merge_two_list(priv, left, right, descend, cmp);
+}
+
+/* Sorting function for external program to call */
+void sort(void *priv, struct list_head *head, list_cmp_func_t cmp)
+{
+    if (!head || list_empty(head) || list_is_singular(head))
+        return;  // `head` is NULL, no list in `head`, or one element
+    struct list_head *end = head->prev;
+    // make the list no longer be circular
+    end->next = NULL;
+    head->next->prev = NULL;
+    head->next = divide(priv, head->next, end, 0, cmp);
+    // make the list to be circular again (move the head back)
+    struct list_head *curr;
+    for (curr = head; curr->next; curr = curr->next)
+        curr->next->prev = curr;
+    curr->next = head;
+    curr->next->prev = curr;
 }
 
 /* Sort elements of queue in ascending/descending order */
@@ -268,13 +304,41 @@ void q_sort(struct list_head *head, bool descend)
     // make the list no longer be circular
     end->next = NULL;
     head->next->prev = NULL;
-    head->next = divide(head->next, end, descend);
+    head->next = divide(NULL, head->next, end, descend, q_cmp);
     // make the list to be circular again (move the head back)
     struct list_head *curr;
     for (curr = head; curr->next; curr = curr->next)
         curr->next->prev = curr;
     curr->next = head;
     curr->next->prev = curr;
+}
+
+/* Sort elements of queue in ascending/descending order by `list_sort.c` */
+void q_list_sort(void *priv, struct list_head *head, bool descend)
+{
+    if (!head || list_empty(head) || list_is_singular(head))
+        return;  // `head` is NULL, no list in `head`, or one element
+    list_sort(priv, head, q_cmp);
+    if (descend)
+        q_reverse(head);
+}
+
+void q_timsort_old(void *priv, struct list_head *head, bool descend)
+{
+    if (!head || list_empty(head) || list_is_singular(head))
+        return;
+    timsort_old(priv, head, q_cmp);
+    if (descend)
+        q_reverse(head);
+}
+
+void q_timsort(void *priv, struct list_head *head, bool descend)
+{
+    if (!head || list_empty(head) || list_is_singular(head))
+        return;
+    timsort(priv, head, q_cmp);
+    if (descend)
+        q_reverse(head);
 }
 
 /* Remove every node which has a node with a strictly less value anywhere to
