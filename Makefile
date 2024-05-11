@@ -41,7 +41,7 @@ OBJS := qtest.o report.o console.o harness.o queue.o \
         random.o dudect/constant.o dudect/fixture.o dudect/ttest.o \
         shannon_entropy.o \
         linenoise.o web.o \
-		listsort.o timsort.o timsort_old.o \
+		listsort.o timsort.o timsort_old.o timsort_binary.o \
 		sort_test.o sort_test_impl.o
 
 deps := $(OBJS:%.o=.%.o.d)

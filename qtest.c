@@ -882,6 +882,8 @@ bool do_tsort(int argc, char *argv[])
             q_timsort(&count, current->q, descend);
         else if (!strcmp(name, "old"))
             q_timsort_old(&count, current->q, descend);
+        else if (!strcmp(name, "binary"))
+            q_timsort_binary(&count, current->q, descend);
         else {
             report(1, "%s invalid sort name for Tim sort", argv[0]);
             return false;

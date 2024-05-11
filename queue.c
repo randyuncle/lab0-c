@@ -323,6 +323,7 @@ void q_list_sort(void *priv, struct list_head *head, bool descend)
         q_reverse(head);
 }
 
+/* Sort elements of queue in ascending/descending order by Tim sort */
 void q_timsort_old(void *priv, struct list_head *head, bool descend)
 {
     if (!head || list_empty(head) || list_is_singular(head))
@@ -332,11 +333,24 @@ void q_timsort_old(void *priv, struct list_head *head, bool descend)
         q_reverse(head);
 }
 
+/* Sort elements of queue in ascending/descending order by Tim sort with minrun
+ * (linear insertion sort strategy) implementation */
 void q_timsort(void *priv, struct list_head *head, bool descend)
 {
     if (!head || list_empty(head) || list_is_singular(head))
         return;
     timsort(priv, head, q_cmp);
+    if (descend)
+        q_reverse(head);
+}
+
+/* Sort elements of queue in ascending/descending order by Tim sort with minrun
+ * (binary insertion sort strategy) implementation */
+void q_timsort_binary(void *priv, struct list_head *head, bool descend)
+{
+    if (!head || list_empty(head) || list_is_singular(head))
+        return;
+    timsort_binary(priv, head, q_cmp);
     if (descend)
         q_reverse(head);
 }

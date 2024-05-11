@@ -380,12 +380,12 @@ bool sort_test(int case_id, int nodes)
     // srand((uintptr_t) &sort_test);
 
     test_t tests[] = {
-        {.name = "timsort", .impl = timsort},
-        {.name = "listsort", .impl = list_sort},
-        {.name = "timsort_old", .impl = timsort_old},
+        // {.name = "timsort", .impl = timsort},
+        // {.name = "listsort", .impl = list_sort},
+        // {.name = "timsort_old", .impl = timsort_old},
         // {.name = "timsort_gallop", .impl = timsort_gallop},
-        // {.name = "timsort_binary", .impl = timsort_binary},
-        {.name = "qsort", .impl = sort},
+        {.name = "timsort_binary", .impl = timsort_binary},
+        // {.name = "qsort", .impl = sort},
         {NULL, NULL},
     };
     test_t *test = tests;

@@ -216,7 +216,7 @@ void q_sort(struct list_head *head, bool descend);
 
 /**
  * q_list_sort() - Sort elements of queue in ascending/descending order by
- * `list_sort.c`
+ * `lib/list_sort.c`
  * @priv: the argument for the comparison function
  * @head: header of queue
  * @descend: whether or not to sort in descending order
@@ -227,7 +227,7 @@ void q_sort(struct list_head *head, bool descend);
 void q_list_sort(void *priv, struct list_head *head, bool descend);
 
 /**
- * q_timsort() - Sort elements of queue in ascending/descending order by Tim
+ * q_timsort_old() - Sort elements of queue in ascending/descending order by Tim
  * sort
  * @priv: the argument for the comparison function
  * @head: header of queue
@@ -240,7 +240,7 @@ void q_timsort_old(void *priv, struct list_head *head, bool descend);
 
 /**
  * q_timsort() - Sort elements of queue in ascending/descending order by Tim
- * sort with minrun implementation
+ * sort with minrun (linear insertion sort strategy) implementation
  * @priv: the argument for the comparison function
  * @head: header of queue
  * @descend: whether or not to sort in descending order
@@ -249,6 +249,18 @@ void q_timsort_old(void *priv, struct list_head *head, bool descend);
  * nothing.
  */
 void q_timsort(void *priv, struct list_head *head, bool descend);
+
+/**
+ * q_timsort_old() - Sort elements of queue in ascending/descending order by Tim
+ * sort with minrun (binary insertion strategy) implementation
+ * @priv: the argument for the comparison function
+ * @head: header of queue
+ * @descend: whether or not to sort in descending order
+ *
+ * No effect if queue is NULL or empty. If there has only one element, do
+ * nothing.
+ */
+void q_timsort_binary(void *priv, struct list_head *head, bool descend);
 
 /**
  * q_ascend() - Remove every node which has a node with a strictly less
